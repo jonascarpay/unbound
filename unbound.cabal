@@ -31,7 +31,10 @@ common common-options
 library
   import:          common-options
   hs-source-dirs:  src
-  exposed-modules: Naive
+  exposed-modules:
+    M01_DBI
+    M02_Bird_Paterson_1
+
   build-depends:
     , containers
     , mtl
