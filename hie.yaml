@@ -1,0 +1,16 @@
+cradle:
+  multi:
+    # - path: "ignore/"
+    #   config: {cradle: {none: }}
+
+    - path: "src"
+      config: {cradle: {cabal: {component: "lib:unbound"}}}
+
+    - path: "app"
+      config: {cradle: {cabal: {component: "unbound:unbound-exe"}}}
+
+    - path: "test"
+      config: {cradle: {cabal: {component: "unbound:unbound-test"}}}
+
+    - path: "bench"
+      config: {cradle: {cabal: {component: "unbound:unbound-bench"}}}
