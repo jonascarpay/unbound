@@ -35,35 +35,3 @@ library
   build-depends:
     , containers
     , mtl
-
-executable unbound-exe
-  import:         common-options
-  hs-source-dirs: app
-  main-is:        Main.hs
-  build-depends:  unbound
-  ghc-options:    -threaded -rtsopts -with-rtsopts=-N
-
-test-suite unbound-test
-  import:         common-options
-  type:           exitcode-stdio-1.0
-  hs-source-dirs: test
-  main-is:        Spec.hs
-  build-depends:
-    , tasty
-    , tasty-expected-failure
-    , tasty-hunit
-    , tasty-quickcheck
-    , unbound
-
-  ghc-options:    -threaded -rtsopts -with-rtsopts=-N
-
-benchmark unbound-bench
-  import:         common-options
-  type:           exitcode-stdio-1.0
-  hs-source-dirs: bench
-  main-is:        Main.hs
-  build-depends:
-    , criterion
-    , unbound
-
-  ghc-options:    -threaded -rtsopts -with-rtsopts=-N
