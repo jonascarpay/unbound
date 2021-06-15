@@ -34,6 +34,7 @@ library
   exposed-modules:
     M01_DBI
     M02_Bird_Paterson_1
+    M03_Bird_Paterson_2
 
   build-depends:
     , containers

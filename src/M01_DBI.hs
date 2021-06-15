@@ -7,6 +7,7 @@ data Exp v
   | Bound !Int
   | App (Exp v) (Exp v)
   | Lam (Exp v)
+  | Int Int
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 abstract :: Eq a => a -> Exp a -> Exp a
@@ -18,6 +19,7 @@ abstract x = go 0
     go _ (Bound i) = Bound i
     go lvl (App fn arg) = App (go lvl fn) (go lvl arg)
     go lvl (Lam body) = Lam (go (succ lvl) body)
+    go _ (Int n) = Int n
 
 instantiate :: Exp a -> Exp a -> Exp a
 instantiate arg = go 0
@@ -28,6 +30,7 @@ instantiate arg = go 0
     go _ (Free var) = Free var
     go lvl (App f x) = App (go lvl f) (go lvl x)
     go lvl (Lam body) = Lam (go (succ lvl) body)
+    go _ (Int n) = Int n
 
 illegal :: Exp a
 illegal = Lam (Bound 2)
