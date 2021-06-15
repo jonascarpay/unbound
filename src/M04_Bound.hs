@@ -6,8 +6,14 @@
 
 module M04_Bound where
 
+import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
+import Data.Char
+import Data.Maybe
+import Data.Void
+import Text.ParserCombinators.ReadP (ReadP)
+import qualified Text.ParserCombinators.ReadP as R
 
 data Var b a = Bound b | Free a
   deriving (Eq, Show, Functor, Foldable, Traversable)
@@ -58,18 +64,33 @@ instantiate f (Scope m) =
     Free a -> a
     Bound b -> f b
 
+instantiate1 :: Monad f => f a -> Scope () f a -> f a
+instantiate1 = instantiate . const
+
 closed :: Traversable f => f a -> Maybe (f b)
 closed = traverse (const Nothing)
 
 isClosed :: Foldable f => f a -> Bool
 isClosed = null
 
+data ValueF f
+  = VInt Int
+  | VList [f]
+  | VClosure (Scope () Exp Void)
+  deriving (Show, Functor, Foldable, Traversable)
+
+newtype Fix f = Fix (f (Fix f))
+
+type LazyValue = ValueF Int
+
+type Value = Fix ValueF
+
 data Exp v
   = Var v
   | App (Exp v) (Exp v)
   | Lam (Scope () Exp v)
-  | Int Int
-  deriving (Eq, Show, Functor, Foldable, Traversable)
+  | Val (ValueF (Exp v))
+  deriving (Show, Functor, Foldable, Traversable)
 
 instance Applicative Exp where
   pure = Var
@@ -79,4 +100,54 @@ instance Monad Exp where
   Var a >>= f = f a
   App l r >>= f = App (l >>= f) (r >>= f)
   Lam b >>= f = Lam $ b >>= lift . f
-  Int n >>= _ = Int n
+  Val v >>= f = Val $ (>>= f) <$> v
+
+lam :: Eq a => a -> Exp a -> Exp a
+lam arg = Lam . abstract1 arg
+
+app :: Exp a -> Exp a -> Exp a
+app arg (Lam body) = instantiate1 arg body
+app _ _ = error "not a closure"
+
+eConst :: Exp Void
+eConst = fromJust $ closed $ lam "x" $ lam "y" $ Var "x"
+
+parse :: String -> Either String (Exp String)
+parse str = case R.readP_to_S (pExp <* R.eof) str of
+  [] -> Left "no parse"
+  [(e, _)] -> pure e
+  _ -> Left "ambiguous"
+
+pSpace :: ReadP ()
+pSpace = void $ R.many $ R.satisfy isSpace
+
+lexeme :: ReadP a -> ReadP a
+lexeme = (<* pSpace)
+
+pName :: ReadP String
+pName = lexeme $ do
+  h <- R.satisfy isLower
+  t <- R.munch1 isAlpha
+  pure $ h : t
+
+string :: String -> ReadP ()
+string = void . lexeme . R.string
+
+number :: ReadP Int
+number = lexeme $ read <$> R.munch1 isNumber
+
+pTerm :: ReadP (Exp String)
+pTerm =
+  R.choice
+    [ Var <$> pName,
+      Val . VInt <$> number,
+      string "(" *> pExp <* string ")"
+    ]
+
+pExp :: ReadP (Exp String)
+pExp =
+  R.choice
+    [ App <$> pTerm <*> pTerm,
+      pTerm,
+      liftA2 lam (pName <* string ":") pExp
+    ]
