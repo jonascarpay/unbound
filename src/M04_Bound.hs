@@ -67,8 +67,8 @@ instantiate f (Scope m) =
 instantiate1 :: Monad f => f a -> Scope () f a -> f a
 instantiate1 = instantiate . const
 
-closed :: Traversable f => f a -> Maybe (f b)
-closed = traverse (const Nothing)
+closed :: Traversable f => f a -> Either a (f b)
+closed = traverse Left
 
 isClosed :: Foldable f => f a -> Bool
 isClosed = null
@@ -109,13 +109,12 @@ app :: Exp a -> Exp a -> Exp a
 app arg (Lam body) = instantiate1 arg body
 app _ _ = error "not a closure"
 
-eConst :: Exp Void
-eConst = fromJust $ closed $ lam "x" $ lam "y" $ Var "x"
-
-parse :: String -> Either String (Exp String)
+parse :: String -> Either String (Exp Void)
 parse str = case R.readP_to_S (pExp <* R.eof) str of
   [] -> Left "no parse"
-  [(e, _)] -> pure e
+  [(e, _)] -> case closed e of
+    Left var -> Left $ "unbound variable " <> var
+    Right a -> pure a
   _ -> Left "ambiguous"
 
 pSpace :: ReadP ()
@@ -127,7 +126,7 @@ lexeme = (<* pSpace)
 pName :: ReadP String
 pName = lexeme $ do
   h <- R.satisfy isLower
-  t <- R.munch1 isAlpha
+  t <- R.munch isAlpha
   pure $ h : t
 
 string :: String -> ReadP ()
