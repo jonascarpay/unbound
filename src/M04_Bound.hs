@@ -73,23 +73,11 @@ closed = traverse Left
 isClosed :: Foldable f => f a -> Bool
 isClosed = null
 
-data ValueF f
-  = VInt Int
-  | VList [f]
-  | VClosure (Scope () Exp Void)
-  deriving (Show, Functor, Foldable, Traversable)
-
-newtype Fix f = Fix (f (Fix f))
-
-type LazyValue = ValueF Int
-
-type Value = Fix ValueF
-
 data Exp v
   = Var v
   | App (Exp v) (Exp v)
   | Lam (Scope () Exp v)
-  | Val (ValueF (Exp v))
+  | Int Int
   deriving (Show, Functor, Foldable, Traversable)
 
 instance Applicative Exp where
@@ -100,7 +88,7 @@ instance Monad Exp where
   Var a >>= f = f a
   App l r >>= f = App (l >>= f) (r >>= f)
   Lam b >>= f = Lam $ b >>= lift . f
-  Val v >>= f = Val $ (>>= f) <$> v
+  Int n >>= _ = Int n
 
 lam :: Eq a => a -> Exp a -> Exp a
 lam arg = Lam . abstract1 arg
@@ -139,7 +127,7 @@ pTerm :: ReadP (Exp String)
 pTerm =
   R.choice
     [ Var <$> pName,
-      Val . VInt <$> number,
+      Int <$> number,
       string "(" *> pExp <* string ")"
     ]
 
