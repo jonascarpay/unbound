@@ -10,7 +10,6 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
 import Data.Char
-import Data.Maybe
 import Data.Void
 import Text.ParserCombinators.ReadP (ReadP)
 import qualified Text.ParserCombinators.ReadP as R
@@ -77,8 +76,9 @@ data Exp v
   = Var v
   | App (Exp v) (Exp v)
   | Lam (Scope () Exp v)
+  | Acc (Exp v) String
   | Int Int
-  deriving (Show, Functor, Foldable, Traversable)
+  deriving (Show, Eq, Functor, Foldable, Traversable)
 
 instance Applicative Exp where
   pure = Var
@@ -89,6 +89,7 @@ instance Monad Exp where
   App l r >>= f = App (l >>= f) (r >>= f)
   Lam b >>= f = Lam $ b >>= lift . f
   Int n >>= _ = Int n
+  Acc b n >>= f = Acc (b >>= f) n
 
 lam :: Eq a => a -> Exp a -> Exp a
 lam arg = Lam . abstract1 arg
@@ -96,6 +97,24 @@ lam arg = Lam . abstract1 arg
 app :: Exp a -> Exp a -> Exp a
 app arg (Lam body) = instantiate1 arg body
 app _ _ = error "not a closure"
+
+nines :: Bool
+nines =
+  all
+    ((== Right (Int 9)) . fmap whnf . parse)
+    [ "9",
+      "(x: x) 9",
+      "(a: b: a) 9 10"
+    ]
+
+whnf :: Exp Void -> Exp Void
+whnf (Var a) = absurd a
+whnf (Lam a) = Lam a
+whnf (Int n) = Int n
+whnf (Acc b n) = Acc b n
+whnf (App f x) = case whnf f of
+  Lam b -> whnf $ instantiate1 x b
+  r -> App f r
 
 parse :: String -> Either String (Exp Void)
 parse str = case R.readP_to_S (pExp <* R.eof) str of
