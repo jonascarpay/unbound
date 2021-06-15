@@ -35,6 +35,7 @@ library
     M01_DBI
     M02_Bird_Paterson_1
     M03_Bird_Paterson_2
+    M03_Bound
 
   build-depends:
     , containers

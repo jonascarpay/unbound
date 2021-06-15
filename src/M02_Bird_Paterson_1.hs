@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE LambdaCase #-}
 
 module M02_Bird_Paterson_1 where
 
@@ -27,10 +28,10 @@ abstract a = fmap go
     go x = if x == a then Nothing else Just x
 
 instantiate :: Exp a -> Exp (Maybe a) -> Exp a
-instantiate sub body = body >>= go
-  where
-    go Nothing = sub
-    go (Just x) = pure x
+instantiate sub body =
+  body >>= \case
+    Nothing -> sub
+    Just x -> Var x
 
 closed :: Exp a -> Maybe (Exp b)
 closed = traverse (const Nothing)

@@ -4,6 +4,7 @@
 module M03_Bird_Paterson_2 where
 
 import Control.Monad
+import Data.Maybe
 
 data Exp v
   = Var v
@@ -22,8 +23,9 @@ instance Monad Exp where
   Lam b >>= f =
     Lam $
       b >>= \case
-        Nothing -> pure Nothing
-        Just a -> pure . f <$> a
+        Nothing -> Var Nothing
+        -- Just a -> Just . f <$> a
+        Just a -> Var . Just $ a >>= f
   Int n >>= _ = Int n
 
 abstract :: (Applicative f, Eq a) => a -> f a -> f (Maybe (f a))
@@ -32,13 +34,10 @@ abstract a = fmap go
     go x = if x == a then Nothing else Just (pure x)
 
 instantiate :: Exp a -> Exp (Maybe (Exp a)) -> Exp a
-instantiate sub body =
-  body >>= \case
-    Nothing -> sub
-    Just a -> a
+instantiate sub body = body >>= fromMaybe sub
 
--- closed :: Exp a -> Maybe (Exp b)
--- closed = traverse (const Nothing)
+closed :: Exp a -> Maybe (Exp b)
+closed = traverse (const Nothing)
 
--- isClosed :: Exp a -> Bool
--- isClosed = null
+isClosed :: Exp a -> Bool
+isClosed = null
