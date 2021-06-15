@@ -134,7 +134,6 @@ pTerm =
 pExp :: ReadP (Exp String)
 pExp =
   R.choice
-    [ App <$> pTerm <*> pTerm,
-      pTerm,
+    [ foldl1 App <$> R.many1 pTerm,
       liftA2 lam (pName <* string ":") pExp
     ]
