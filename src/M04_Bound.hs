@@ -105,10 +105,10 @@ recAttr binds = abstract (\a -> if M.member a m then Just a else Nothing) <$> m
     m = M.fromList binds
 
 instantiateAttr :: forall a b. Ord a => Map a (Scope a Exp b) -> a -> Maybe (Exp b)
-instantiateAttr m a = instantiate safe <$> M.lookup a m
+instantiateAttr m a = instantiate unsafe <$> M.lookup a m
   where
-    safe :: a -> Exp b
-    safe a = instantiate safe . fromJust $ M.lookup a m
+    unsafe :: a -> Exp b
+    unsafe = instantiate unsafe . fromJust . flip M.lookup m
 
 nines :: Bool
 nines =
@@ -117,7 +117,11 @@ nines =
     [ "9",
       "(x: x) 9",
       "(a: b: a) 9 10",
-      "{ b = 9, a = b, c = a }.c"
+      "{ b = 9, a = b, c = a }.c",
+      "{ b = {a = 9}, c = b, d = c.a }.d",
+      "{ y = f: (x: f (x x)) (x: f (x x)) \
+      \, b = y (self: { nine = 9, value = self.nine }) \
+      \}.b.value"
     ]
 
 whnf :: Exp Void -> Exp Void
