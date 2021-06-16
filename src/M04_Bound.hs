@@ -10,6 +10,9 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
 import Data.Char
+import Data.Map (Map)
+import qualified Data.Map as M
+import Data.Maybe
 import Data.Void
 import Text.ParserCombinators.ReadP (ReadP)
 import qualified Text.ParserCombinators.ReadP as R
@@ -77,6 +80,7 @@ data Exp v
   | App (Exp v) (Exp v)
   | Lam (Scope () Exp v)
   | Acc (Exp v) String
+  | Att (Map String (Scope String Exp v))
   | Int Int
   deriving (Show, Eq, Functor, Foldable, Traversable)
 
@@ -88,15 +92,23 @@ instance Monad Exp where
   Var a >>= f = f a
   App l r >>= f = App (l >>= f) (r >>= f)
   Lam b >>= f = Lam $ b >>= lift . f
+  Att b >>= f = Att $ (>>= lift . f) <$> b
   Int n >>= _ = Int n
   Acc b n >>= f = Acc (b >>= f) n
 
 lam :: Eq a => a -> Exp a -> Exp a
 lam arg = Lam . abstract1 arg
 
-app :: Exp a -> Exp a -> Exp a
-app arg (Lam body) = instantiate1 arg body
-app _ _ = error "not a closure"
+recAttr :: Ord a => [(a, Exp a)] -> Map a (Scope a Exp a)
+recAttr binds = abstract (\a -> if M.member a m then Just a else Nothing) <$> m
+  where
+    m = M.fromList binds
+
+instantiateAttr :: forall a b. Ord a => Map a (Scope a Exp b) -> a -> Maybe (Exp b)
+instantiateAttr m a = instantiate safe <$> M.lookup a m
+  where
+    safe :: a -> Exp b
+    safe a = instantiate safe . fromJust $ M.lookup a m
 
 nines :: Bool
 nines =
@@ -104,14 +116,18 @@ nines =
     ((== Right (Int 9)) . fmap whnf . parse)
     [ "9",
       "(x: x) 9",
-      "(a: b: a) 9 10"
+      "(a: b: a) 9 10",
+      "{ b = 9, a = b, c = a }.c"
     ]
 
 whnf :: Exp Void -> Exp Void
 whnf (Var a) = absurd a
 whnf (Lam a) = Lam a
 whnf (Int n) = Int n
-whnf (Acc b n) = Acc b n
+whnf (Att m) = Att m
+whnf (Acc b n) = case whnf b of
+  Att m | Just r <- instantiateAttr m n -> whnf r
+  _ -> Acc b n
 whnf (App f x) = case whnf f of
   Lam b -> whnf $ instantiate1 x b
   r -> App f r
@@ -142,17 +158,23 @@ string = void . lexeme . R.string
 number :: ReadP Int
 number = lexeme $ read <$> R.munch1 isNumber
 
-pTerm :: ReadP (Exp String)
-pTerm =
+pTerm1 :: ReadP (Exp String)
+pTerm1 = do
+  h <- pTerm0
+  foldl Acc h <$> many (string "." *> pName)
+
+pTerm0 :: ReadP (Exp String)
+pTerm0 =
   R.choice
     [ Var <$> pName,
       Int <$> number,
+      fmap (Att . recAttr) $ string "{" *> R.sepBy (liftA2 (,) (pName <* string "=") pExp) (string ",") <* string "}",
       string "(" *> pExp <* string ")"
     ]
 
 pExp :: ReadP (Exp String)
 pExp =
   R.choice
-    [ foldl1 App <$> R.many1 pTerm,
+    [ foldl1 App <$> R.many1 pTerm1,
       liftA2 lam (pName <* string ":") pExp
     ]
