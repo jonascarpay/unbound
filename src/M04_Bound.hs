@@ -96,6 +96,11 @@ instance Monad Exp where
   Int n >>= _ = Int n
   Acc b n >>= f = Acc (b >>= f) n
 
+data ValueF f
+  = VClosure (Scope () Exp Void)
+  | VInt Int
+  | VAtt (Map String f)
+
 lam :: Eq a => a -> Exp a -> Exp a
 lam arg = Lam . abstract1 arg
 
@@ -119,6 +124,7 @@ nines =
       "(a: b: a) 9 10",
       "{ b = 9, a = b, c = a }.c",
       "{ b = {a = 9}, c = b, d = c.a }.d",
+      "(a: b: a) 9 ((x: x x) (x: x x))",
       "{ y = f: (x: f (x x)) (x: f (x x)) \
       \, b = y (self: { nine = 9, value = self.nine }) \
       \}.b.value"
