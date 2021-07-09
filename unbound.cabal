@@ -32,10 +32,12 @@ library
   import:          common-options
   hs-source-dirs:  src
   exposed-modules:
+    LLC
     M01_DBI
     M02_Bird_Paterson_1
     M03_Bird_Paterson_2
     M04_Bound
+    Prog
 
   build-depends:
     , containers
